@@ -1,0 +1,231 @@
+imgpath =  'C:\Users\prave\Desktop\OriginalBrodatz\Original Brodatz';
+destdirectory = 'C:\Users\prave\Desktop\OriginalBrodatz\Original Brodatz\destdir';
+no_in_cat=25;
+height=128;
+width=128;
+%filePattern = fullfile(imgpath,'**\*.png');
+
+mkdir(destdirectory);
+count=0;
+cn=1;
+
+imglist  =  dir(imgpath);
+imglist(strncmp({imglist.name},'.',1))=[];
+imglist(strncmp({imglist.name},'.',1) | [imglist.isdir]) = [];
+fvect=zeros(size(imglist,1)*25,768);
+for i=1:size(imglist,1)
+    n = imglist(i).name;
+    imgname = [imgpath '/' n];
+    
+
+    if (n(1) ~= '.')
+        Readimg = imread(imgname);
+        [row,col,~] = size(Readimg);
+        %[~, currentfilename, ~] = fileparts(imgname); 
+        for ll=1:(height-1):row
+           %ridx = floor(ll/(height-1)) +1; 
+           for mm=1:(width-1):col
+             %cidx = floor(mm/(width-1)) +1;
+             if((ll+height)<=row && (mm+width)<=col)
+                Readimg1=imcrop(Readimg,[(ll) (mm) (height-1) (width-1)]);
+                
+                %outfilename = sprintf('%03d_%03d_%03d.png',i,ridx,cidx);
+                
+                outfilename = sprintf('%03d_%03d.png',i,cn);
+                %fulldestination = [destdirectory '\' n];
+                fulldestination = fullfile(destdirectory,outfilename);
+                
+                
+                imgfind = imgpro(Readimg1);
+                imwrite(imgfind,fulldestination);
+                count=count+1;
+                if cn<no_in_cat
+                  cn=cn+1;
+                else
+                  cn=1;
+                end
+                fvect(count, :) = featureVector(imgfind);
+                %%fvect(count, :) = Feature_autoencoder(imgfind);
+                %disp(['Feature Vector for ' outfilename ' has been extracted']);
+                %sprintf('Good Going')
+                
+              end
+             
+           end
+              %sprintf('Fair enough')
+           
+        end
+         %sprintf('success')     
+        
+    end
+end
+save('fvect.mat','fvect');
+
+%X=fvect;
+%[B,Hnew] = ELM_AE(X,'sig',3);
+%XReconstructed  = Hnew*pinv(B');
+%Y = XReconstructed';
+%fvect2=Y(:,1:10);
+%save('fvect2.mat','fvect2');
+
+
+
+%[~,reconstructed] = pcares(fvect,6);
+%fvect1 = reconstructed(:,1:6);
+%save('fvect1.mat','fvect1');
+
+
+
+
+
+
+
+% load('fvect2.mat');
+%load('fvect1.mat');
+oad('fvect.mat');
+precision = zeros(10,1);
+recall = zeros(10,1);
+dist = zeros(2800,1);
+nsimarr = [25 30 35 40 45 50 55 60 65 70];
+
+%for nnsim = 1:length(nsimarr)
+
+
+%nsim = nsimarr(nnsim);
+no_in_cat=25;
+no_cat = 112;
+%imnumber=0;
+precision1 = zeros(no_in_cat*no_cat, length(nsimarr));
+recall1 = zeros(no_in_cat*no_cat, length(nsimarr));
+imglist = dir(destdirectory);
+imglist(strncmp({imglist.name},'.',1))=[];
+imglist(strncmp({imglist.name},'.',1) | [imglist.isdir]) = [];
+%precision = zeros(size(imglist,1),1);
+%recall = zeros(size(imglist,1),1);
+precision2 = 0;
+recall2 = 0;
+imnumber=0;
+
+for ff=1:size(imglist,1)
+   gg = imglist(ff).name;
+   queryimage = gg;
+   fullFileName = fullfile(destdirectory,queryimage);
+   imgquery = imread(fullFileName);
+   Image_query = imgpro(imgquery);
+   feature_query = featureVector(Image_query);
+    %%feature_query = Feature_autoencoder(Image_query);
+
+
+
+for aa=1:size(imglist,1)
+    n = imglist(aa).name;
+
+    imgname = [destdirectory '\' n];
+
+    if (n(1) ~= '.')
+        dist(aa,:) = sMeasure(feature_query,fvect(aa,:));
+    end
+end
+
+
+% To skip the query image, we change 0 distance to any large number
+m = max(dist);
+
+new_dist = zeros(size(dist,1), 1);
+for bb=1:size(dist,1)
+    if (dist(bb)==0)
+        new_dist(bb) = 2*m;
+    else
+        new_dist(bb) = dist(bb);
+    end
+end
+
+clear aa bb n 
+
+% Display query image
+%figure;
+%subplot(1,nsim,1);
+%imshow(imread(fullFileName));
+%title('query image');
+
+for nnsim = 1:length(nsimarr)
+
+
+nsim = nsimarr(nnsim);
+imnumber=0;
+
+
+
+for cc=1:nsim
+    % find closest object according to eucledian distance
+    idxclosest = find(new_dist == min(new_dist));
+    retrimg = imglist(idxclosest).name;
+    %imgres= imread([destdirectory '/' retrimg]);
+    %subplot(1,nsim,cc+1);
+    %figure;
+    %imshow(imgres);
+    %title(['Closest image rank of ' num2str(cc)]);
+    query_name_split=split(queryimage,"_");
+    for dd=1:(no_in_cat)
+      if dd<10
+       if(strcmp(retrimg, strcat(query_name_split(1,1),{'_00'},num2str(dd),{'.png'})))
+         %if imnumber < no_in_cat
+           imnumber=imnumber+1;
+         %else
+         %  imnumber=0;
+          %end
+         
+        end
+       else
+         if(strcmp(retrimg, strcat(query_name_split(1,1),{'_0'},num2str(dd),{'.png'})))
+         %if imnumber < no_in_cat
+           imnumber=imnumber+1;
+         %else
+         %  imnumber=0;
+          %end
+          end
+       end
+     end
+     
+    new_dist(idxclosest) = m; % To retrieve the next nearest image
+end
+
+%precision(ff,:) = (imnumber/nsim)*100;
+precision1(ff,nnsim) = (imnumber/nsimarr(nnsim));
+%precision2 = precision2 + precision1;
+%recall(ff,:) = (imnumber/no_in_cat)*100;
+recall1(ff,nnsim) = (imnumber/no_in_cat);
+%recall2 = recall2 + recall1;
+
+
+end
+
+
+end
+
+
+for nnsim = 1:length(nsimarr)
+nsim = nsimarr(nnsim);
+
+
+precision2=sum(precision1);
+recall2=sum(recall1);
+
+
+precision(:,nnsim) = (precision2/(no_in_cat * no_cat))*100;
+recall(:,nnsim) = (recall2/(no_in_cat * no_cat))*100;
+
+end
+
+
+figure;
+plot(nsimarr,precision);
+title('Precision Curve');
+xlabel('No. of images retrieved');
+ylabel('Precision %');
+
+figure;
+plot(nsimarr,recall);
+title('Recall Curve');
+xlabel('No. of images retrieved');
+ylabel('Recall %');
